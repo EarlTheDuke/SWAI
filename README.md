@@ -124,6 +124,16 @@ dotnet run --project src/SWAI.App
 - "Double the height"
 - "Add another hole"
 
+### Assembly Operations
+- "Create a new assembly called Cabinet"
+- "Insert the component Side.sldprt"
+- "Add a coincident mate between Part1-1 and Part2-1"
+- "Make a concentric mate between Shaft-1 and Hole-1"
+- "Fix the component Base-1"
+- "Add a distance mate of 2 inches"
+- "Move the component by 3 inches in X direction"
+- "Save the assembly"
+
 ### File Operations
 - "Save the part"
 - "Save as STEP file"
@@ -177,7 +187,7 @@ The application supports a "Mock Mode" for development and testing without Solid
 - [x] Phase 2: AI Pipeline & Command Parsing (Structured JSON output, enhanced prompts)
 - [x] Phase 3: Core CAD Operations (Fillets, chamfers, holes, patterns)
 - [x] Phase 4: Conversational Intelligence (Context memory, incremental commands)
-- [ ] Phase 5: Assembly Operations
+- [x] Phase 5: Assembly Operations (Components, mates, transforms)
 - [ ] Phase 6: Drawing/Image Recognition
 
 ## Contributing

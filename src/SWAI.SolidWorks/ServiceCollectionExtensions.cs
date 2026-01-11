@@ -20,6 +20,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(configuration);
         services.AddSingleton<SolidWorksService>();
         services.AddSingleton<ISolidWorksService>(sp => sp.GetRequiredService<SolidWorksService>());
+        
+        // Part services
         services.AddSingleton<IPartService, PartService>();
         services.AddSingleton<ISketchService, SketchService>();
         services.AddSingleton<IFeatureService, FeatureService>();
@@ -27,6 +29,13 @@ public static class ServiceCollectionExtensions
         // Pattern and hole wizard services
         services.AddSingleton<PatternService>();
         services.AddSingleton<HoleWizardService>();
+        
+        // Assembly services
+        services.AddSingleton<AssemblyService>();
+        services.AddSingleton<IAssemblyService>(sp => sp.GetRequiredService<AssemblyService>());
+        services.AddSingleton<MateService>();
+        services.AddSingleton<IMateService>(sp => sp.GetRequiredService<MateService>());
+        services.AddSingleton<AssemblyCommandExecutor>();
         
         // Command executor
         services.AddSingleton<Core.Interfaces.ICommandExecutor, CommandExecutor>();
