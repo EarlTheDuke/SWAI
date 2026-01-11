@@ -3,252 +3,307 @@
 > Transform natural language descriptions into SolidWorks 3D models using AI
 
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
-![SolidWorks](https://img.shields.io/badge/SolidWorks-2025-red)
+![SolidWorks](https://img.shields.io/badge/SolidWorks-2020--2025-red)
 ![License](https://img.shields.io/badge/License-MIT-green)
+![Status](https://img.shields.io/badge/Status-Beta-orange)
 
 ## Overview
 
 SWAI is a conversational AI application that translates English descriptions into SolidWorks parts and assemblies. Simply describe what you want to create, and SWAI handles the CAD operations for you.
 
-### Example
+### Demo
 
 ```
-You: "Create a part 36 inches wide, 96 inches long, and 0.75 inches thick"
+You: "Create a box 10 x 5 x 2 inches"
 
-SWAI: Creating rectangular part...
-      ✓ New part document created
-      ✓ Base sketch: 36" x 96" rectangle
-      ✓ Extruded to 0.75" thickness
-      ✓ Part ready: "Part_36x96x0.75.SLDPRT"
+SWAI: ✓ Created box: 10" x 5" x 2"
+
+📋 SolidWorks API Preview:
+   // Step 1: Create new part document
+   swModel = swApp.NewDocument(...)
+   
+   // Step 2: Create new sketch on Top Plane
+   swModel.Extension.SelectByID2("Top Plane", "PLANE", ...)
+   swModel.SketchManager.InsertSketch(true)
+   
+   // Step 3: Draw rectangle (-0.127, -0.0635) to (0.127, 0.0635) meters
+   swModel.SketchManager.CreateCornerRectangle(...)
+   
+   // Step 4: Extrude sketch 0.0508 m (2 inches)
+   swModel.FeatureManager.FeatureExtrusion3(...)
 ```
 
-## Features
+## Current Status (Beta)
 
-- **Natural Language Input**: Describe parts in plain English
-- **Unit Flexibility**: Supports inches, millimeters, fractional dimensions (e.g., "3/4 inch")
-- **Incremental Building**: Add features conversationally ("now add 2-inch edges")
-- **Multiple Export Formats**: SLDPRT, STEP, STL, IGES
-- **Session Memory**: Persistent sessions with design state tracking and auto-snapshots
-- **Command Preview**: Structured preview with risk assessment, confidence scores, and Execute/Edit/Cancel
-- **Multiple AI Providers**: OpenAI, Azure OpenAI, xAI Grok, Anthropic Claude with fallback support
-- **Special Commands**: `/help`, `/summarize`, `/undo`, `/history`, `/sessions` and more
-- **Mock Mode**: Development without SolidWorks with recording/playback capability
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Natural Language Parsing | ✅ Working | xAI Grok, OpenAI GPT-4, Claude |
+| API Code Preview | ✅ Working | See exact SolidWorks API calls |
+| Mock Mode Testing | ✅ Working | Test without SolidWorks |
+| Real SolidWorks Integration | ⚠️ Ready to Test | Needs testing with licensed SW |
+| Basic Shapes (box, cylinder) | ✅ Implemented | |
+| Features (holes, fillets, chamfers) | ✅ Implemented | |
+| Assemblies & Mates | ✅ Implemented | |
+| Complex Patterns | ⚠️ Basic | May need refinement |
 
-## Architecture
+## Quick Start for R&D Team
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      SWAI Application                        │
-├─────────────────────────────────────────────────────────────┤
-│  SWAI.App          │  WPF UI with MVVM pattern              │
-│  SWAI.AI           │  Semantic Kernel + LLM integration     │
-│  SWAI.Core         │  Domain models, commands, interfaces   │
-│  SWAI.SolidWorks   │  SolidWorks COM API abstraction        │
-└─────────────────────────────────────────────────────────────┘
-```
+### Prerequisites
 
-## Prerequisites
+- **Windows 10/11**
+- **.NET 8.0 SDK** - [Download](https://dotnet.microsoft.com/download/dotnet/8.0)
+- **SolidWorks 2020-2025** with API access (for real testing)
+- **AI API Key** (xAI, OpenAI, or Azure OpenAI)
 
-- **SolidWorks 2025** (or later) with API access
-- **.NET 8.0 SDK**
-- **Visual Studio 2022** (recommended)
-- **OpenAI API Key** (or Azure OpenAI)
+### Step 1: Clone and Build
 
-## Quick Start
-
-### 1. Clone the Repository
-
-```bash
+```powershell
 git clone https://github.com/EarlTheDuke/SWAI.git
 cd SWAI
+dotnet build
 ```
 
-### 2. Configure API Keys
+### Step 2: Configure API Key
 
-Copy the sample configuration and add your API key:
-
-```bash
+```powershell
 copy appsettings.sample.json appsettings.json
 ```
 
-Edit `appsettings.json`:
+Edit `appsettings.json` and add your API key:
 
 ```json
 {
   "AI": {
-    "Provider": "OpenAI",
-    "ApiKey": "your-openai-api-key-here",
-    "Model": "gpt-4o"
+    "Provider": "xAI",
+    "ApiKey": "xai-YOUR_ACTUAL_KEY_HERE",
+    "Model": "grok-4-1-fast-reasoning"
   }
 }
 ```
 
-### 3. Build and Run
+**Supported AI Providers:**
+- **xAI Grok** (recommended) - Fast reasoning, good for CAD commands
+- **OpenAI GPT-4o** - Excellent understanding
+- **Azure OpenAI** - Enterprise option
+- **Anthropic Claude** - Alternative option
 
-```bash
-dotnet build
+### Step 3: Choose Mode
+
+#### Option A: Mock Mode (No SolidWorks Required)
+Test the AI parsing without SolidWorks installed:
+
+```json
+{
+  "SolidWorks": {
+    "UseMock": true
+  }
+}
+```
+
+#### Option B: Real SolidWorks Mode
+Test with actual SolidWorks:
+
+```json
+{
+  "SolidWorks": {
+    "UseMock": false,
+    "AutoConnect": true,
+    "StartVisible": true
+  }
+}
+```
+
+### Step 4: Run
+
+```powershell
+# From project root
 dotnet run --project src/SWAI.App
+
+# Or run the built executable
+.\src\SWAI.App\bin\Debug\net8.0-windows\SWAI.exe
 ```
 
-## Configuration
+## How It Works
 
-### Basic Configuration
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `AI:Provider` | Primary AI provider | OpenAI |
-| `AI:ApiKey` | Your API key | (required) |
-| `AI:Model` | Model to use | gpt-4o |
-| `AI:FallbackProvider` | Fallback if primary fails | xAI |
-| `SolidWorks:AutoConnect` | Connect to SW on startup | true |
-| `SolidWorks:DefaultUnits` | Default unit system | Inches |
-| `Mock:Enabled` | Enable mock mode | false |
-
-### Multi-Provider Configuration
-
-```json
-{
-  "AI": {
-    "Provider": "OpenAI",
-    "FallbackProvider": "xAI",
-    "Providers": {
-      "OpenAI": { "ApiKey": "sk-...", "Model": "gpt-4o" },
-      "xAI": { "ApiKey": "xai-...", "Model": "grok-4", "BaseUrl": "https://api.x.ai/v1" },
-      "Anthropic": { "ApiKey": "sk-ant-...", "Model": "claude-opus-4-5-20250514" }
-    }
-  }
-}
-```
-
-## Supported Commands
-
-### Part Creation
-- "Create a box 10x20x5 inches"
-- "Make a cylinder 2 inch diameter, 6 inches tall"
-- "Create a plate 500mm x 300mm x 10mm"
-- "Make a part 36" wide, 96" long, 3/4" thick"
-
-### Feature Operations
-- "Add a 1-inch fillet to all edges"
-- "Add a 0.5 inch chamfer"
-- "Cut a 2-inch hole in the center"
-- "Add a through hole 1/2 inch diameter"
-- "Extrude the sketch 3 inches"
-
-### Pattern Operations
-- "Add 4 holes 2 inches apart"
-- "Create a circular pattern of 6 holes"
-- "Mirror about the right plane"
-
-### Incremental Commands
-- "Make it thicker"
-- "Increase the width by 2 inches"
-- "Double the height"
-- "Add another hole"
-
-### Special Commands (Slash Commands)
-- `/help` - Show all available commands
-- `/summarize` - Session summary with context
-- `/list` - List parts, features, components
-- `/undo` - Undo last command
-- `/history` - Recent command history
-- `/sessions` - List saved sessions
-- `/save-session` - Save current session
-- `/load-session <name>` - Load a saved session
-- `/new-session [name]` - Start fresh session
-- `/context` - Show current design context
-
-### Assembly Operations
-- "Create a new assembly called Cabinet"
-- "Insert the component Side.sldprt"
-- "Add a coincident mate between Part1-1 and Part2-1"
-- "Make a concentric mate between Shaft-1 and Hole-1"
-- "Fix the component Base-1"
-- "Add a distance mate of 2 inches"
-- "Move the component by 3 inches in X direction"
-- "Save the assembly"
-
-### File Operations
-- "Save the part"
-- "Save as STEP file"
-- "Export to STL"
-- "Save the part as Cabinet_Side.SLDPRT"
-
-## Development
-
-### Project Structure
+### Architecture
 
 ```
-src/
-├── SWAI.App/           # WPF Application
-├── SWAI.Core/          # Domain logic
-├── SWAI.AI/            # AI/LLM integration
-└── SWAI.SolidWorks/    # SolidWorks API
-
-tests/
-├── SWAI.Core.Tests/
-├── SWAI.AI.Tests/
-└── SWAI.SolidWorks.Tests/
+┌────────────────────────────────────────────────────────────────────┐
+│                         User Input                                  │
+│              "Create a box 10 x 5 x 2 inches"                      │
+└─────────────────────────────┬──────────────────────────────────────┘
+                              │
+                              ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                    AI Service (xAI/OpenAI)                         │
+│  - Parses natural language                                         │
+│  - Returns structured JSON with intent + parameters                │
+└─────────────────────────────┬──────────────────────────────────────┘
+                              │
+                              ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                    Command Executor                                 │
+│  - Converts JSON to ISwaiCommand objects                           │
+│  - Generates API preview (in mock mode)                            │
+│  - Executes against SolidWorks COM API                             │
+└─────────────────────────────┬──────────────────────────────────────┘
+                              │
+                              ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                    SolidWorks API                                   │
+│  - CreateCornerRectangle, CreateCircleByRadius                     │
+│  - FeatureExtrusion3, FeatureFillet3, HoleWizard5                  │
+│  - All coordinates in METERS (converted from user units)           │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-### Building
+### SolidWorks API Integration
 
-```bash
-dotnet build SWAI.sln
+The app uses **COM automation** to control SolidWorks:
+
+```csharp
+// Connect to running SolidWorks or start new instance
+var swType = Type.GetTypeFromProgID("SldWorks.Application");
+_swApp = Activator.CreateInstance(swType);
+_swApp.Visible = true;
+
+// Create a sketch on the Top plane
+swModel.Extension.SelectByID2("Top Plane", "PLANE", 0, 0, 0, false, 0, null, 0);
+swModel.SketchManager.InsertSketch(true);
+
+// Draw a rectangle (coordinates in METERS)
+swModel.SketchManager.CreateCornerRectangle(0, 0, 0, 0.254, 0.127, 0);
+
+// Extrude the sketch
+swModel.FeatureManager.FeatureExtrusion3(...);
 ```
 
-### Testing
+**Important:** SolidWorks API uses meters internally. SWAI automatically converts from user units (inches, mm) to meters.
 
-```bash
-dotnet test
+## Test Commands
+
+Try these commands to test the system:
+
+### Basic Shapes
+```
+Create a box 10 x 5 x 2 inches
+Create a cylinder 3 inch diameter, 6 inches tall
+Make a plate 200mm x 100mm x 5mm
 ```
 
-### Running Without SolidWorks
-
-The application supports enhanced Mock Mode for development and testing:
-
-```json
-{
-  "SolidWorks": { "UseMock": true },
-  "Mock": {
-    "Enabled": true,
-    "FailureRate": 0.0,
-    "RecordMode": false,
-    "MinDelayMs": 100,
-    "MaxDelayMs": 500,
-    "RealisticResponses": true
-  }
-}
+### Features
+```
+Add a 0.5 inch fillet to all edges
+Add a 0.25 inch chamfer
+Add a 1 inch diameter hole through the center
 ```
 
-**Mock Features:**
-- Realistic feature names and IDs
-- Configurable random failures for testing error handling
-- Recording and playback of API sessions
-- Simulated network delays
+### Multi-Step
+```
+Create a box 6 x 4 x 2 inches with a 1 inch hole through the center
+```
 
-## Roadmap
+### Patterns
+```
+Add 4 holes in a row, 2 inches apart
+Create a circular pattern of 8 holes
+```
 
-- [x] Phase 1: Foundation & Architecture
-- [x] Phase 2: AI Pipeline & Command Parsing (Structured JSON output, enhanced prompts)
-- [x] Phase 3: Core CAD Operations (Fillets, chamfers, holes, patterns)
-- [x] Phase 4: Conversational Intelligence (Context memory, incremental commands)
-- [x] Phase 5: Assembly Operations (Components, mates, transforms)
-- [ ] Phase 6: Drawing/Image Recognition
+## Project Structure
+
+```
+SWAI/
+├── src/
+│   ├── SWAI.App/           # WPF Application (UI)
+│   │   ├── Views/          # XAML windows
+│   │   └── ViewModels/     # MVVM view models
+│   ├── SWAI.Core/          # Domain models & interfaces
+│   │   ├── Commands/       # ISwaiCommand implementations
+│   │   ├── Models/         # Geometry, Units, Features
+│   │   └── Interfaces/     # Service contracts
+│   ├── SWAI.AI/            # AI/LLM integration
+│   │   ├── Services/       # StructuredAIService
+│   │   └── Models/         # CommandSchema (JSON parsing)
+│   └── SWAI.SolidWorks/    # SolidWorks COM API
+│       └── Services/       # PartService, SketchService, etc.
+├── tests/
+│   ├── SWAI.Core.Tests/
+│   └── SWAI.AI.Tests/
+├── appsettings.sample.json # Template config (copy to appsettings.json)
+└── README.md
+```
+
+## Known Issues & Limitations
+
+1. **Complex Patterns**: Grid patterns and mirror operations may need refinement
+2. **Edge Selection**: Fillets/chamfers apply to "all edges" - specific edge selection coming
+3. **Assemblies**: Basic mate support; complex mates need testing
+4. **Error Recovery**: Some SolidWorks errors may need manual intervention
+
+## Testing Checklist for R&D
+
+- [ ] Build succeeds with `dotnet build`
+- [ ] App launches in mock mode
+- [ ] AI connection works (green indicator in top-right)
+- [ ] Basic commands parse correctly
+- [ ] API preview shows reasonable SolidWorks code
+- [ ] (With SW) App connects to SolidWorks
+- [ ] (With SW) Box creation works
+- [ ] (With SW) Cylinder creation works
+- [ ] (With SW) Hole creation works
+- [ ] (With SW) Fillet creation works
+
+## Troubleshooting
+
+### "AI unavailable - using offline parsing"
+- Check your API key in appsettings.json
+- Verify network connectivity
+- Check API provider status
+
+### App won't connect to SolidWorks
+- Ensure SolidWorks is running OR set `AutoConnect: true`
+- Check that SolidWorks API is enabled (Tools > Add-Ins > SolidWorks API SDK)
+- Run SWAI as Administrator if COM registration issues
+
+### Build errors
+```powershell
+# Clean and rebuild
+dotnet clean
+dotnet build
+```
+
+### Multiple windows opening
+- This was fixed - ensure you have the latest code
+
+## API Reference
+
+Key SolidWorks API methods used:
+
+| SWAI Operation | SolidWorks API | Documentation |
+|----------------|----------------|---------------|
+| Select plane | `Extension.SelectByID2` | [Link](https://help.solidworks.com/2025/english/api/sldworksapi/) |
+| Create sketch | `SketchManager.InsertSketch` | |
+| Draw rectangle | `SketchManager.CreateCornerRectangle` | |
+| Draw circle | `SketchManager.CreateCircleByRadius` | |
+| Extrude | `FeatureManager.FeatureExtrusion3` | |
+| Fillet | `FeatureManager.FeatureFillet3` | |
+| Hole | `FeatureManager.HoleWizard5` | |
 
 ## Contributing
 
-Contributions are welcome! Please read our contributing guidelines before submitting PRs.
+1. Fork the repository
+2. Create a feature branch
+3. Make changes
+4. Run tests: `dotnet test`
+5. Submit a PR
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## Acknowledgments
+## Contact
 
-- [SolidWorks API Documentation](https://help.solidworks.com/2025/english/api/sldworksapiprogguide/Welcome.htm)
-- [Microsoft Semantic Kernel](https://github.com/microsoft/semantic-kernel)
-- Inspired by [SolidWorks-Copilot](https://github.com/weianweigan/SolidWorks-Copilot)
+Questions? Issues? Open a GitHub issue or contact the development team.
 
 ---
 

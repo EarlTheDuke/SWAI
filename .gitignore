@@ -101,7 +101,8 @@ ipch/
 *.VC.db
 *.VC.VC.opendb
 
-# Secrets
+# Secrets and API Keys
+appsettings.json
 appsettings.Development.json
 appsettings.Local.json
 secrets.json
