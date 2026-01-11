@@ -29,6 +29,9 @@ public static class ServiceCollectionExtensions
         
         // Conversation context for stateful interactions
         services.AddSingleton<ConversationContext>();
+        
+        // Command preview service
+        services.AddSingleton<ICommandPreviewService, CommandPreviewService>();
 
         return services;
     }

@@ -5,10 +5,52 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="SWAI - SolidWorks AI Assistant" 
-        Height="700" Width="1000"
-        MinHeight="500" MinWidth="700"
+        Height="750" Width="1100"
+        MinHeight="600" MinWidth="800"
         Background="{StaticResource BackgroundBrush}"
         WindowStartupLocation="CenterScreen">
+    
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        
+        <!-- Preview Action Item Template -->
+        <DataTemplate x:Key="PreviewActionTemplate">
+            <Border Background="{StaticResource CardBrush}" CornerRadius="6" Padding="10,8" Margin="0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <TextBlock Grid.Column="0" Text="{Binding Icon}" FontSize="16" 
+                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    
+                    <StackPanel Grid.Column="1">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding TypeName}" FontWeight="SemiBold" 
+                                       Foreground="{StaticResource AccentBrush}" FontSize="12"/>
+                            <TextBlock Text=" • " Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                            <TextBlock Text="{Binding Description}" 
+                                       Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding Parameters}" FontSize="11" 
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Visibility="{Binding Parameters, Converter={StaticResource NullToVisibility}}"
+                                   Margin="0,2,0,0"/>
+                    </StackPanel>
+                    
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ConfidenceDisplay}" FontSize="11"
+                                   Foreground="{StaticResource SuccessBrush}" Margin="8,0"/>
+                        <Ellipse Width="8" Height="8" Fill="{StaticResource WarningBrush}"
+                                 Visibility="{Binding HasWarnings, Converter={StaticResource BoolToVisibility}}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </Window.Resources>
     
     <Grid>
         <Grid.RowDefinitions>
@@ -24,6 +66,7 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Logo and Title -->
@@ -38,8 +81,15 @@
                     </StackPanel>
                 </StackPanel>
 
+                <!-- Provider Info -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <TextBlock Text="AI: " FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <TextBlock Text="{Binding CurrentProvider}" FontSize="11" 
+                               Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold"/>
+                </StackPanel>
+
                 <!-- Connection Status -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                     <Ellipse Width="10" Height="10" Margin="0,0,8,0">
                         <Ellipse.Style>
                             <Style TargetType="Ellipse">
@@ -66,7 +116,7 @@
             </Grid>
         </Border>
 
-        <!-- Main Content - Chat Area -->
+        <!-- Main Content -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -78,6 +128,7 @@
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
@@ -110,6 +161,12 @@
                                                         <Setter Property="BorderBrush" Value="{StaticResource ErrorBrush}"/>
                                                         <Setter Property="BorderThickness" Value="1"/>
                                                     </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsPreview}" Value="True">
+                                                        <Setter Property="Background" Value="#2D3748"/>
+                                                        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                                        <Setter Property="BorderThickness" Value="1"/>
+                                                        <Setter Property="MaxWidth" Value="700"/>
+                                                    </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
@@ -117,7 +174,24 @@
                                             <TextBlock Text="{Binding Content}" 
                                                        TextWrapping="Wrap"
                                                        Foreground="{StaticResource TextPrimaryBrush}"
-                                                       FontSize="14"/>
+                                                       FontSize="14"
+                                                       FontFamily="Consolas"
+                                                       Visibility="{Binding IsPreview, Converter={StaticResource BoolToVisibility}}"/>
+                                            <TextBlock Text="{Binding Content}" 
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       FontSize="14">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsPreview}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                             <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm}'}" 
                                                        FontSize="10"
                                                        Foreground="{StaticResource TextSecondaryBrush}"
@@ -130,16 +204,104 @@
                         </ItemsControl>
                     </ScrollViewer>
 
-                    <!-- Input Area -->
+                    <!-- Preview Confirmation Panel -->
                     <Border Grid.Row="1" Background="{StaticResource SurfaceBrush}" 
+                            CornerRadius="8" Margin="8,4" Padding="12"
+                            Visibility="{Binding ShowPreviewConfirmation, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Command Preview" FontSize="14" FontWeight="SemiBold" 
+                                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <TextBlock Text="Confidence: " FontSize="12" 
+                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="{Binding PreviewConfidence}" FontSize="12" 
+                                               Foreground="{StaticResource SuccessBrush}" FontWeight="SemiBold"/>
+                                    <TextBlock Text=" | Risk: " FontSize="12" 
+                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="8,0,0,0"/>
+                                    <TextBlock Text="{Binding PreviewRisk}" FontSize="12" 
+                                               FontWeight="SemiBold">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding PreviewRisk}" Value="Medium">
+                                                        <Setter Property="Foreground" Value="{StaticResource WarningBrush}"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding PreviewRisk}" Value="High">
+                                                        <Setter Property="Foreground" Value="{StaticResource ErrorBrush}"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding PreviewRisk}" Value="Critical">
+                                                        <Setter Property="Foreground" Value="{StaticResource ErrorBrush}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Grid>
+                            
+                            <!-- Action List -->
+                            <ItemsControl ItemsSource="{Binding PreviewActions}" 
+                                          ItemTemplate="{StaticResource PreviewActionTemplate}"
+                                          MaxHeight="200">
+                                <ItemsControl.Template>
+                                    <ControlTemplate>
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" 
+                                                      HorizontalScrollBarVisibility="Disabled">
+                                            <ItemsPresenter/>
+                                        </ScrollViewer>
+                                    </ControlTemplate>
+                                </ItemsControl.Template>
+                            </ItemsControl>
+                            
+                            <!-- Warnings -->
+                            <ItemsControl ItemsSource="{Binding PreviewWarnings}" Margin="0,8,0,0"
+                                          Visibility="{Binding HasPreviewWarnings, Converter={StaticResource BoolToVisibility}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                                            <TextBlock Text="⚠️ " FontSize="12"/>
+                                            <TextBlock Text="{Binding}" FontSize="12" 
+                                                       Foreground="{StaticResource WarningBrush}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            
+                            <!-- Buttons -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                                <Button Content="Cancel" Command="{Binding CancelPreviewCommand}"
+                                        Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0" MinWidth="80"/>
+                                <Button Content="Edit" Command="{Binding EditPreviewCommand}"
+                                        Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0" MinWidth="80"/>
+                                <Button Content="Execute" Command="{Binding ExecutePreviewCommand}"
+                                        Style="{StaticResource PrimaryButtonStyle}" MinWidth="100"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Input Area -->
+                    <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" 
                             CornerRadius="8" Margin="8" Padding="4">
                         <Grid>
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
-                            <TextBox Grid.Column="0" 
+                            <!-- Preview Mode Toggle -->
+                            <ToggleButton Grid.Column="0" Content="📋" ToolTip="Preview Mode"
+                                          IsChecked="{Binding PreviewModeEnabled}"
+                                          Style="{StaticResource ToggleButtonStyle}"
+                                          Margin="4,0,8,0" Width="32" Height="32"/>
+
+                            <TextBox Grid.Column="1" 
                                      x:Name="InputTextBox"
                                      Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource ChatInputStyle}"
@@ -152,7 +314,7 @@
                                 </TextBox.InputBindings>
                             </TextBox>
 
-                            <Button Grid.Column="1" 
+                            <Button Grid.Column="2" 
                                     Content="Send" 
                                     Command="{Binding SendCommand}"
                                     Style="{StaticResource PrimaryButtonStyle}"
@@ -163,41 +325,117 @@
                 </Grid>
             </Border>
 
-            <!-- Side Panel - Part Info -->
-            <Border Grid.Column="1" Width="280" Background="{StaticResource SurfaceBrush}" 
-                    Margin="0,8,8,8" CornerRadius="8" Padding="12"
-                    Visibility="{Binding HasActivePart, Converter={StaticResource BoolToVisibility}}">
-                <StackPanel>
-                    <TextBlock Text="Current Part" FontSize="16" FontWeight="SemiBold" 
-                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12"/>
-                    
-                    <TextBlock Text="{Binding ActivePartName}" FontSize="14" 
-                               Foreground="{StaticResource TextPrimaryBrush}"/>
-                    
-                    <Separator Margin="0,12" Background="{StaticResource CardBrush}"/>
-                    
-                    <TextBlock Text="Features" FontSize="14" FontWeight="SemiBold" 
-                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
-                    
-                    <ItemsControl ItemsSource="{Binding PartFeatures}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding}" FontSize="12" 
-                                           Foreground="{StaticResource TextSecondaryBrush}"
-                                           Margin="0,2"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+            <!-- Side Panel -->
+            <Border Grid.Column="1" Width="300" Background="{StaticResource SurfaceBrush}" 
+                    Margin="0,8,8,8" CornerRadius="8" Padding="12">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <!-- Part Info Section -->
+                        <StackPanel Visibility="{Binding HasActivePart, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="Current Part" FontSize="16" FontWeight="SemiBold" 
+                                       Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                            
+                            <TextBlock Text="{Binding ActivePartName}" FontSize="14" 
+                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                            
+                            <Separator Margin="0,12" Background="{StaticResource CardBrush}"/>
+                            
+                            <TextBlock Text="Features" FontSize="14" FontWeight="SemiBold" 
+                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                            
+                            <ItemsControl ItemsSource="{Binding PartFeatures}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" FontSize="12" 
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Margin="0,2"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
 
-                    <Separator Margin="0,12" Background="{StaticResource CardBrush}"/>
+                            <Separator Margin="0,12" Background="{StaticResource CardBrush}"/>
 
-                    <StackPanel Orientation="Horizontal">
-                        <Button Content="Save" Command="{Binding SaveCommand}" 
-                                Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,8,0"/>
-                        <Button Content="Export" Command="{Binding ExportCommand}" 
-                                Style="{StaticResource PrimaryButtonStyle}"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="Save" Command="{Binding SaveCommand}" 
+                                        Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,8,0"/>
+                                <Button Content="Export" Command="{Binding ExportCommand}" 
+                                        Style="{StaticResource PrimaryButtonStyle}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Preview History Section -->
+                        <StackPanel Margin="0,16,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Preview History" FontSize="14" FontWeight="SemiBold" 
+                                           Foreground="{StaticResource TextSecondaryBrush}"/>
+                                <Button Grid.Column="1" Content="Clear" FontSize="10"
+                                        Command="{Binding ClearHistoryCommand}"
+                                        Style="{StaticResource LinkButtonStyle}"/>
+                            </Grid>
+                            
+                            <ItemsControl ItemsSource="{Binding PreviewHistory}" Margin="0,8,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource CardBrush}" CornerRadius="4" 
+                                                Padding="8" Margin="0,4" Cursor="Hand"
+                                                MouseLeftButtonDown="PreviewHistoryItem_Click">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Summary}" FontSize="11" 
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                    <TextBlock Text="{Binding GeneratedAt, StringFormat='{}{0:HH:mm}'}" 
+                                                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                    <TextBlock Text=" • " FontSize="10" 
+                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                    <TextBlock FontSize="10">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Text" Value="Pending"/>
+                                                                <Setter Property="Foreground" Value="{StaticResource WarningBrush}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsExecuted}" Value="True">
+                                                                        <Setter Property="Text" Value="Executed"/>
+                                                                        <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding IsCancelled}" Value="True">
+                                                                        <Setter Property="Text" Value="Cancelled"/>
+                                                                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <!-- Settings Section -->
+                        <StackPanel Margin="0,16,0,0">
+                            <TextBlock Text="Preview Settings" FontSize="14" FontWeight="SemiBold" 
+                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                            
+                            <CheckBox Content="Show detailed preview" 
+                                      IsChecked="{Binding AlwaysShowDetailedPreview}"
+                                      Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                            <CheckBox Content="Auto-execute low-risk commands" 
+                                      IsChecked="{Binding AutoExecuteLowRisk}"
+                                      Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" Margin="0,4,0,0"/>
+                            
+                            <ComboBox ItemsSource="{Binding PreviewModes}" 
+                                      SelectedItem="{Binding SelectedPreviewMode}"
+                                      Margin="0,8,0,0" FontSize="12"/>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
+                </ScrollViewer>
             </Border>
         </Grid>
 
@@ -205,14 +443,22 @@
         <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" Padding="12,8">
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" 
-                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                <!-- Mock Mode Banner -->
+                <Border Grid.Column="0" Background="#4CAF50" CornerRadius="4" Padding="8,4" Margin="0,0,12,0"
+                        Visibility="{Binding IsMockMode, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="🔧 MOCK MODE" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                </Border>
+
+                <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" 
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"
+                           VerticalAlignment="Center"/>
                 
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <TextBlock Text="Mode: " Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
                     <TextBlock Text="{Binding OperationMode}" 
                                Foreground="{StaticResource AccentBrush}" FontSize="12" FontWeight="SemiBold"/>
@@ -220,8 +466,4 @@
             </Grid>
         </Border>
     </Grid>
-
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
-    </Window.Resources>
 </Window>

@@ -28,8 +28,11 @@ SWAI: Creating rectangular part...
 - **Unit Flexibility**: Supports inches, millimeters, fractional dimensions (e.g., "3/4 inch")
 - **Incremental Building**: Add features conversationally ("now add 2-inch edges")
 - **Multiple Export Formats**: SLDPRT, STEP, STL, IGES
-- **Session Memory**: Remembers context for multi-step operations
-- **Command Preview**: See what will be created before execution
+- **Session Memory**: Persistent sessions with design state tracking and auto-snapshots
+- **Command Preview**: Structured preview with risk assessment, confidence scores, and Execute/Edit/Cancel
+- **Multiple AI Providers**: OpenAI, Azure OpenAI, xAI Grok, Anthropic Claude with fallback support
+- **Special Commands**: `/help`, `/summarize`, `/undo`, `/history`, `/sessions` and more
+- **Mock Mode**: Development without SolidWorks with recording/playback capability
 
 ## Architecture
 
@@ -89,14 +92,33 @@ dotnet run --project src/SWAI.App
 
 ## Configuration
 
+### Basic Configuration
+
 | Setting | Description | Default |
 |---------|-------------|---------|
-| `AI:Provider` | AI provider (OpenAI, Azure) | OpenAI |
+| `AI:Provider` | Primary AI provider | OpenAI |
 | `AI:ApiKey` | Your API key | (required) |
 | `AI:Model` | Model to use | gpt-4o |
+| `AI:FallbackProvider` | Fallback if primary fails | xAI |
 | `SolidWorks:AutoConnect` | Connect to SW on startup | true |
 | `SolidWorks:DefaultUnits` | Default unit system | Inches |
-| `Export:DefaultFormat` | Default export format | STEP |
+| `Mock:Enabled` | Enable mock mode | false |
+
+### Multi-Provider Configuration
+
+```json
+{
+  "AI": {
+    "Provider": "OpenAI",
+    "FallbackProvider": "xAI",
+    "Providers": {
+      "OpenAI": { "ApiKey": "sk-...", "Model": "gpt-4o" },
+      "xAI": { "ApiKey": "xai-...", "Model": "grok-4", "BaseUrl": "https://api.x.ai/v1" },
+      "Anthropic": { "ApiKey": "sk-ant-...", "Model": "claude-opus-4-5-20250514" }
+    }
+  }
+}
+```
 
 ## Supported Commands
 
@@ -123,6 +145,18 @@ dotnet run --project src/SWAI.App
 - "Increase the width by 2 inches"
 - "Double the height"
 - "Add another hole"
+
+### Special Commands (Slash Commands)
+- `/help` - Show all available commands
+- `/summarize` - Session summary with context
+- `/list` - List parts, features, components
+- `/undo` - Undo last command
+- `/history` - Recent command history
+- `/sessions` - List saved sessions
+- `/save-session` - Save current session
+- `/load-session <name>` - Load a saved session
+- `/new-session [name]` - Start fresh session
+- `/context` - Show current design context
 
 ### Assembly Operations
 - "Create a new assembly called Cabinet"
@@ -171,15 +205,27 @@ dotnet test
 
 ### Running Without SolidWorks
 
-The application supports a "Mock Mode" for development and testing without SolidWorks:
+The application supports enhanced Mock Mode for development and testing:
 
 ```json
 {
-  "SolidWorks": {
-    "UseMock": true
+  "SolidWorks": { "UseMock": true },
+  "Mock": {
+    "Enabled": true,
+    "FailureRate": 0.0,
+    "RecordMode": false,
+    "MinDelayMs": 100,
+    "MaxDelayMs": 500,
+    "RealisticResponses": true
   }
 }
 ```
+
+**Mock Features:**
+- Realistic feature names and IDs
+- Configurable random failures for testing error handling
+- Recording and playback of API sessions
+- Simulated network delays
 
 ## Roadmap
 

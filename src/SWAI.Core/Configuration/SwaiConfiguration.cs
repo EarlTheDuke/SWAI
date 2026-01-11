@@ -4,7 +4,7 @@ using SWAI.Core.Models.Units;
 namespace SWAI.Core.Configuration;
 
 /// <summary>
-/// AI provider configuration
+/// AI provider configuration (legacy - single provider)
 /// </summary>
 public class AIConfiguration
 {
@@ -14,6 +14,55 @@ public class AIConfiguration
     public string Model { get; set; } = "gpt-4o";
     public int MaxTokens { get; set; } = 4096;
     public double Temperature { get; set; } = 0.7;
+    
+    /// <summary>
+    /// Fallback provider name
+    /// </summary>
+    public string? FallbackProvider { get; set; }
+    
+    /// <summary>
+    /// Multi-provider configurations
+    /// </summary>
+    public ProvidersConfiguration? Providers { get; set; }
+}
+
+/// <summary>
+/// Configuration for all supported AI providers
+/// </summary>
+public class ProvidersConfiguration
+{
+    public ProviderConfig? OpenAI { get; set; }
+    public AzureProviderConfig? AzureOpenAI { get; set; }
+    public XAIProviderConfig? xAI { get; set; }
+    public ProviderConfig? Anthropic { get; set; }
+}
+
+/// <summary>
+/// Base provider configuration
+/// </summary>
+public class ProviderConfig
+{
+    public string ApiKey { get; set; } = string.Empty;
+    public string Model { get; set; } = string.Empty;
+    public int MaxTokens { get; set; } = 4096;
+    public double Temperature { get; set; } = 0.7;
+}
+
+/// <summary>
+/// Azure OpenAI specific configuration
+/// </summary>
+public class AzureProviderConfig : ProviderConfig
+{
+    public string Endpoint { get; set; } = string.Empty;
+    public string DeploymentName { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// xAI (Grok) specific configuration
+/// </summary>
+public class XAIProviderConfig : ProviderConfig
+{
+    public string BaseUrl { get; set; } = "https://api.x.ai/v1";
 }
 
 /// <summary>
