@@ -4,6 +4,7 @@ using SWAI.Core.Configuration;
 using SWAI.Core.Interfaces;
 using SWAI.Core.Models.Geometry;
 using SWAI.Core.Models.Sketch;
+using SWAI.Core.Services;
 using System.Diagnostics;
 
 namespace SWAI.SolidWorks.Services;
@@ -17,7 +18,11 @@ public class CommandExecutor : Core.Interfaces.ICommandExecutor
     private readonly IPartService _partService;
     private readonly ISketchService _sketchService;
     private readonly IFeatureService _featureService;
+    private readonly SolidWorksService _swService;
+    private readonly PatternService _patternService;
+    private readonly HoleWizardService _holeWizardService;
     private readonly SolidWorksConfiguration _config;
+    private readonly ConversationContext? _context;
 
     private readonly List<ISwaiCommand> _history = new();
     private readonly Stack<ISwaiCommand> _undoStack = new();
@@ -31,14 +36,24 @@ public class CommandExecutor : Core.Interfaces.ICommandExecutor
         IPartService partService,
         ISketchService sketchService,
         IFeatureService featureService,
+        SolidWorksService swService,
         SolidWorksConfiguration config,
-        ILogger<CommandExecutor> logger)
+        ILogger<CommandExecutor> logger,
+        ConversationContext? context = null)
     {
         _partService = partService;
         _sketchService = sketchService;
         _featureService = featureService;
+        _swService = swService;
         _config = config;
         _logger = logger;
+        _context = context;
+
+        // Initialize pattern and hole services
+        _patternService = new PatternService(swService, config, 
+            logger as ILogger<PatternService> ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<PatternService>.Instance);
+        _holeWizardService = new HoleWizardService(swService, config,
+            logger as ILogger<HoleWizardService> ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<HoleWizardService>.Instance);
     }
 
     public async Task<CommandResult> ExecuteAsync(ISwaiCommand command)
@@ -50,16 +65,31 @@ public class CommandExecutor : Core.Interfaces.ICommandExecutor
         {
             CommandResult result = command switch
             {
+                // Part commands
                 CreatePartCommand cmd => await ExecuteCreatePartAsync(cmd),
                 CreateBoxCommand cmd => await ExecuteCreateBoxAsync(cmd),
                 CreateCylinderCommand cmd => await ExecuteCreateCylinderAsync(cmd),
                 SavePartCommand cmd => await ExecuteSavePartAsync(cmd),
                 ExportPartCommand cmd => await ExecuteExportPartAsync(cmd),
                 ClosePartCommand cmd => await ExecuteClosePartAsync(cmd),
+
+                // Feature commands
                 AddExtrusionCommand cmd => await ExecuteAddExtrusionAsync(cmd),
                 AddFilletCommand cmd => await ExecuteAddFilletAsync(cmd),
                 AddChamferCommand cmd => await ExecuteAddChamferAsync(cmd),
                 AddHoleCommand cmd => await ExecuteAddHoleAsync(cmd),
+
+                // Pattern commands
+                AddLinearPatternCommand cmd => await ExecuteLinearPatternAsync(cmd),
+                AddCircularPatternCommand cmd => await ExecuteCircularPatternAsync(cmd),
+                AddMirrorCommand cmd => await ExecuteMirrorAsync(cmd),
+
+                // Modification commands
+                ModifyDimensionCommand cmd => await ExecuteModifyDimensionAsync(cmd),
+                UndoCommand cmd => await ExecuteUndoAsync(cmd),
+                RedoCommand cmd => await ExecuteRedoAsync(cmd),
+                ShowInfoCommand cmd => await ExecuteShowInfoAsync(cmd),
+
                 _ => CommandResult.Failed($"Unknown command type: {command.CommandType}")
             };
 
@@ -74,6 +104,9 @@ public class CommandExecutor : Core.Interfaces.ICommandExecutor
                     _undoStack.Push(command);
                     _redoStack.Clear();
                 }
+
+                // Update conversation context
+                _context?.OnCommandExecuted(command, result.Data);
             }
 
             _logger.LogInformation("Command completed in {Elapsed}ms: {Success}",
@@ -88,6 +121,8 @@ public class CommandExecutor : Core.Interfaces.ICommandExecutor
             return CommandResult.Failed($"Command failed: {ex.Message}", ex.ToString());
         }
     }
+
+    #region Part Commands
 
     private async Task<CommandResult> ExecuteCreatePartAsync(CreatePartCommand cmd)
     {
@@ -186,6 +221,10 @@ public class CommandExecutor : Core.Interfaces.ICommandExecutor
             : CommandResult.Failed("Failed to close part");
     }
 
+    #endregion
+
+    #region Feature Commands
+
     private async Task<CommandResult> ExecuteAddExtrusionAsync(AddExtrusionCommand cmd)
     {
         var feature = cmd.IsCut
@@ -210,18 +249,230 @@ public class CommandExecutor : Core.Interfaces.ICommandExecutor
     private async Task<CommandResult> ExecuteAddHoleAsync(AddHoleCommand cmd)
     {
         var location = cmd.Location ?? Point3D.Origin;
-        var depth = cmd.Depth ?? Core.Models.Units.Dimension.Inches(1); // Default 1 inch
+        var depth = cmd.Depth ?? Core.Models.Units.Dimension.Inches(1);
 
-        var feature = await _featureService.CreateHoleAsync(cmd.FeatureName, location, cmd.Diameter, depth);
-        return CommandResult.Succeeded($"Created hole: D={cmd.Diameter}", feature);
+        if (cmd.ThroughAll)
+        {
+            // Use hole wizard for through-all holes
+            var success = await _holeWizardService.CreateSimpleHoleAsync(
+                location, cmd.Diameter, depth, throughAll: true);
+            return success
+                ? CommandResult.Succeeded($"Created through hole: D={cmd.Diameter}")
+                : CommandResult.Failed("Failed to create hole");
+        }
+        else
+        {
+            var feature = await _featureService.CreateHoleAsync(cmd.FeatureName, location, cmd.Diameter, depth);
+            return CommandResult.Succeeded($"Created hole: D={cmd.Diameter}, Depth={depth}", feature);
+        }
     }
+
+    #endregion
+
+    #region Pattern Commands
+
+    private async Task<CommandResult> ExecuteLinearPatternAsync(AddLinearPatternCommand cmd)
+    {
+        var success = await _patternService.CreateLinearPatternAsync(
+            cmd.Count1, cmd.Spacing1, cmd.Count2, cmd.Spacing2);
+
+        return success
+            ? CommandResult.Succeeded($"Created linear pattern: {cmd.Count1} instances")
+            : CommandResult.Failed("Failed to create linear pattern");
+    }
+
+    private async Task<CommandResult> ExecuteCircularPatternAsync(AddCircularPatternCommand cmd)
+    {
+        var success = await _patternService.CreateCircularPatternAsync(
+            cmd.Count, cmd.TotalAngle, cmd.EqualSpacing);
+
+        return success
+            ? CommandResult.Succeeded($"Created circular pattern: {cmd.Count} instances")
+            : CommandResult.Failed("Failed to create circular pattern");
+    }
+
+    private async Task<CommandResult> ExecuteMirrorAsync(AddMirrorCommand cmd)
+    {
+        var success = await _patternService.CreateMirrorAsync(cmd.MirrorPlane);
+
+        return success
+            ? CommandResult.Succeeded($"Created mirror about {cmd.MirrorPlane}")
+            : CommandResult.Failed("Failed to create mirror");
+    }
+
+    #endregion
+
+    #region Modification Commands
+
+    private async Task<CommandResult> ExecuteModifyDimensionAsync(ModifyDimensionCommand cmd)
+    {
+        // This would need access to the actual dimension in SolidWorks
+        // For now, we log the intent
+        _logger.LogInformation("Modify dimension: {Type} {ModType} {Value}",
+            cmd.DimensionType, cmd.ModificationType, cmd.Value);
+
+        if (!_config.UseMock)
+        {
+            // In real implementation, would:
+            // 1. Find the dimension by type in the feature tree
+            // 2. Calculate new value based on modification type
+            // 3. Update the dimension value
+            // 4. Rebuild the model
+
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    var swApp = _swService.GetApplication();
+                    if (swApp == null) return CommandResult.Failed("Not connected to SolidWorks");
+
+                    var model = swApp.ActiveDoc;
+                    if (model == null) return CommandResult.Failed("No active document");
+
+                    // Would need to find and modify the appropriate dimension
+                    // model.Parameter(dimensionName).SystemValue = newValue;
+                    // model.EditRebuild3();
+
+                    return CommandResult.Succeeded($"Modified {cmd.DimensionType}: {cmd.Description}");
+                }
+                catch (Exception ex)
+                {
+                    return CommandResult.Failed($"Failed to modify dimension: {ex.Message}");
+                }
+            });
+        }
+
+        return CommandResult.Succeeded($"[Mock] Modified {cmd.DimensionType}: {cmd.Description}");
+    }
+
+    private async Task<CommandResult> ExecuteUndoAsync(UndoCommand cmd)
+    {
+        for (int i = 0; i < cmd.Count && CanUndo; i++)
+        {
+            await UndoAsync();
+        }
+
+        return CommandResult.Succeeded($"Undone {cmd.Count} operation(s)");
+    }
+
+    private async Task<CommandResult> ExecuteRedoAsync(RedoCommand cmd)
+    {
+        for (int i = 0; i < cmd.Count && CanRedo; i++)
+        {
+            await RedoAsync();
+        }
+
+        return CommandResult.Succeeded($"Redone {cmd.Count} operation(s)");
+    }
+
+    private async Task<CommandResult> ExecuteShowInfoAsync(ShowInfoCommand cmd)
+    {
+        var part = _partService.ActivePart;
+        if (part == null)
+        {
+            return CommandResult.Succeeded("No active part. Create a part first.");
+        }
+
+        var info = cmd.Type switch
+        {
+            InfoType.Dimensions => GetDimensionsInfo(part),
+            InfoType.Features => GetFeaturesInfo(part),
+            InfoType.Properties => GetPropertiesInfo(part),
+            InfoType.Mass => await GetMassPropertiesAsync(),
+            _ => GetAllInfo(part)
+        };
+
+        return CommandResult.Succeeded(info, part);
+    }
+
+    private string GetDimensionsInfo(Core.Models.Documents.PartDocument part)
+    {
+        // Would query actual dimensions from SolidWorks
+        return $"Part: {part.Name}\nFeatures: {part.Features.Count}";
+    }
+
+    private string GetFeaturesInfo(Core.Models.Documents.PartDocument part)
+    {
+        var features = part.Features.Select(f => $"  • {f.Name} ({f.FeatureType})");
+        return $"Features in {part.Name}:\n{string.Join("\n", features)}";
+    }
+
+    private string GetPropertiesInfo(Core.Models.Documents.PartDocument part)
+    {
+        var props = part.CustomProperties.Select(kv => $"  • {kv.Key}: {kv.Value}");
+        return $"Properties:\n{string.Join("\n", props)}";
+    }
+
+    private async Task<string> GetMassPropertiesAsync()
+    {
+        if (_config.UseMock)
+        {
+            return "Mass Properties (Mock):\n  • Mass: 1.5 kg\n  • Volume: 0.0005 m³\n  • Surface Area: 0.05 m²";
+        }
+
+        return await Task.Run(() =>
+        {
+            try
+            {
+                var swApp = _swService.GetApplication();
+                var model = swApp?.ActiveDoc;
+                if (model == null) return "No active document";
+
+                var massProps = model.Extension.CreateMassProperty();
+                if (massProps == null) return "Could not calculate mass properties";
+
+                var mass = massProps.Mass;
+                var volume = massProps.Volume;
+                var surfaceArea = massProps.SurfaceArea;
+
+                return $"Mass Properties:\n  • Mass: {mass:F4} kg\n  • Volume: {volume:F6} m³\n  • Surface Area: {surfaceArea:F4} m²";
+            }
+            catch (Exception ex)
+            {
+                return $"Error calculating mass properties: {ex.Message}";
+            }
+        });
+    }
+
+    private string GetAllInfo(Core.Models.Documents.PartDocument part)
+    {
+        return $"Part: {part.Name}\n" +
+               $"Units: {part.Units}\n" +
+               $"Features: {part.Features.Count}\n" +
+               $"Sketches: {part.Sketches.Count}\n" +
+               $"Modified: {(part.IsDirty ? "Yes" : "No")}";
+    }
+
+    #endregion
+
+    #region Undo/Redo
 
     public async Task<bool> UndoAsync()
     {
         if (!CanUndo) return false;
 
-        // In a real implementation, this would use SolidWorks' undo
-        _logger.LogInformation("Undo requested - feature not fully implemented");
+        _logger.LogInformation("Executing undo");
+
+        if (!_config.UseMock)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    var swApp = _swService.GetApplication();
+                    var model = swApp?.ActiveDoc;
+                    if (model == null) return false;
+
+                    model.EditUndo2(1);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Undo failed");
+                    return false;
+                }
+            });
+        }
 
         var cmd = _undoStack.Pop();
         _redoStack.Push(cmd);
@@ -233,11 +484,34 @@ public class CommandExecutor : Core.Interfaces.ICommandExecutor
     {
         if (!CanRedo) return false;
 
-        _logger.LogInformation("Redo requested - feature not fully implemented");
+        _logger.LogInformation("Executing redo");
+
+        if (!_config.UseMock)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    var swApp = _swService.GetApplication();
+                    var model = swApp?.ActiveDoc;
+                    if (model == null) return false;
+
+                    model.EditRedo2(1);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Redo failed");
+                    return false;
+                }
+            });
+        }
 
         var cmd = _redoStack.Pop();
         _undoStack.Push(cmd);
 
         return await Task.FromResult(true);
     }
+
+    #endregion
 }

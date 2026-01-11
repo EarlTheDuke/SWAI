@@ -23,6 +23,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPartService, PartService>();
         services.AddSingleton<ISketchService, SketchService>();
         services.AddSingleton<IFeatureService, FeatureService>();
+        
+        // Pattern and hole wizard services
+        services.AddSingleton<PatternService>();
+        services.AddSingleton<HoleWizardService>();
+        
+        // Command executor
         services.AddSingleton<Core.Interfaces.ICommandExecutor, CommandExecutor>();
 
         return services;

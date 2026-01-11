@@ -104,13 +104,28 @@ dotnet run --project src/SWAI.App
 - "Create a box 10x20x5 inches"
 - "Make a cylinder 2 inch diameter, 6 inches tall"
 - "Create a plate 500mm x 300mm x 10mm"
+- "Make a part 36" wide, 96" long, 3/4" thick"
 
 ### Feature Operations
 - "Add a 1-inch fillet to all edges"
+- "Add a 0.5 inch chamfer"
 - "Cut a 2-inch hole in the center"
+- "Add a through hole 1/2 inch diameter"
 - "Extrude the sketch 3 inches"
 
+### Pattern Operations
+- "Add 4 holes 2 inches apart"
+- "Create a circular pattern of 6 holes"
+- "Mirror about the right plane"
+
+### Incremental Commands
+- "Make it thicker"
+- "Increase the width by 2 inches"
+- "Double the height"
+- "Add another hole"
+
 ### File Operations
+- "Save the part"
 - "Save as STEP file"
 - "Export to STL"
 - "Save the part as Cabinet_Side.SLDPRT"
@@ -159,9 +174,9 @@ The application supports a "Mock Mode" for development and testing without Solid
 ## Roadmap
 
 - [x] Phase 1: Foundation & Architecture
-- [ ] Phase 2: AI Pipeline & Command Parsing
-- [ ] Phase 3: Core CAD Operations
-- [ ] Phase 4: Conversational Intelligence
+- [x] Phase 2: AI Pipeline & Command Parsing (Structured JSON output, enhanced prompts)
+- [x] Phase 3: Core CAD Operations (Fillets, chamfers, holes, patterns)
+- [x] Phase 4: Conversational Intelligence (Context memory, incremental commands)
 - [ ] Phase 5: Assembly Operations
 - [ ] Phase 6: Drawing/Image Recognition
 

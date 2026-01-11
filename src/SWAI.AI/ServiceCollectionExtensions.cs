@@ -3,6 +3,7 @@ using SWAI.AI.Parsing;
 using SWAI.AI.Services;
 using SWAI.Core.Configuration;
 using SWAI.Core.Interfaces;
+using SWAI.Core.Services;
 
 namespace SWAI.AI;
 
@@ -19,8 +20,15 @@ public static class ServiceCollectionExtensions
         AIConfiguration configuration)
     {
         services.AddSingleton(configuration);
-        services.AddSingleton<IAIService, AIService>();
+        
+        // Use StructuredAIService for enhanced parsing
+        services.AddSingleton<IAIService, StructuredAIService>();
+        
+        // Command parser for offline fallback
         services.AddSingleton<CommandParser>();
+        
+        // Conversation context for stateful interactions
+        services.AddSingleton<ConversationContext>();
 
         return services;
     }
