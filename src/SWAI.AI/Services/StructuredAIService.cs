@@ -41,18 +41,43 @@ public class StructuredAIService : IAIService
             try
             {
                 var builder = Kernel.CreateBuilder();
+                var provider = config.Provider?.ToLowerInvariant() ?? "openai";
 
-                if (config.Provider.Equals("Azure", StringComparison.OrdinalIgnoreCase))
+                switch (provider)
                 {
-                    builder.AddAzureOpenAIChatCompletion(
-                        config.Model,
-                        config.Endpoint ?? throw new InvalidOperationException("Azure endpoint required"),
-                        config.ApiKey
-                    );
-                }
-                else
-                {
-                    builder.AddOpenAIChatCompletion(config.Model, config.ApiKey);
+                    case "xai":
+                    case "grok":
+                        // xAI uses OpenAI-compatible API with custom endpoint
+                        var xaiBaseUrl = config.Providers?.xAI?.BaseUrl ?? "https://api.x.ai/v1";
+                        var xaiKey = config.Providers?.xAI?.ApiKey ?? config.ApiKey;
+                        var xaiModel = config.Providers?.xAI?.Model ?? config.Model ?? "grok-beta";
+                        
+                        #pragma warning disable SKEXP0010
+                        builder.AddOpenAIChatCompletion(
+                            modelId: xaiModel,
+                            apiKey: xaiKey,
+                            endpoint: new Uri(xaiBaseUrl));
+                        #pragma warning restore SKEXP0010
+                        
+                        _logger.LogInformation("Structured AI Service initialized with xAI at {Endpoint}", xaiBaseUrl);
+                        break;
+
+                    case "azure":
+                    case "azureopenai":
+                        var azureEndpoint = config.Providers?.AzureOpenAI?.Endpoint ?? config.Endpoint;
+                        var azureKey = config.Providers?.AzureOpenAI?.ApiKey ?? config.ApiKey;
+                        var azureModel = config.Providers?.AzureOpenAI?.DeploymentName ?? config.Model;
+                        
+                        builder.AddAzureOpenAIChatCompletion(
+                            azureModel,
+                            azureEndpoint ?? throw new InvalidOperationException("Azure endpoint required"),
+                            azureKey);
+                        break;
+
+                    case "openai":
+                    default:
+                        builder.AddOpenAIChatCompletion(config.Model, config.ApiKey);
+                        break;
                 }
 
                 _kernel = builder.Build();
@@ -72,6 +97,8 @@ public class StructuredAIService : IAIService
 
     public async Task<AIResponse> ProcessInputAsync(string userInput, IReadOnlyList<ChatMessage>? history = null)
     {
+        string? fallbackReason = null;
+
         // Try structured AI parsing first
         if (IsConfigured && _chatService != null)
         {
@@ -82,15 +109,39 @@ public class StructuredAIService : IAIService
                 {
                     return ConvertSchemaToResponse(schema, userInput);
                 }
+                fallbackReason = "AI returned empty response";
+            }
+            catch (HttpRequestException ex)
+            {
+                fallbackReason = $"Network error: {ex.Message}";
+                _logger.LogWarning(ex, "Network error during AI parsing, falling back to offline");
             }
             catch (Exception ex)
             {
+                fallbackReason = $"AI error: {ex.Message}";
                 _logger.LogWarning(ex, "Structured parsing failed, falling back to offline");
             }
         }
+        else
+        {
+            fallbackReason = "AI service not configured";
+        }
 
         // Fall back to offline parsing
-        return ProcessInputOffline(userInput);
+        var offlineResponse = ProcessInputOffline(userInput);
+        
+        // Add fallback notification to the response
+        return new AIResponse
+        {
+            Success = offlineResponse.Success,
+            Message = offlineResponse.Message,
+            Commands = offlineResponse.Commands,
+            NeedsClarification = offlineResponse.NeedsClarification,
+            Suggestions = offlineResponse.Suggestions,
+            Error = offlineResponse.Error,
+            UsedOfflineFallback = true,
+            FallbackReason = fallbackReason
+        };
     }
 
     private async Task<CommandSchema?> GetStructuredResponseAsync(string userInput, IReadOnlyList<ChatMessage>? history)

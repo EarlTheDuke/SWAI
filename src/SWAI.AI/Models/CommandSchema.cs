@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace SWAI.AI.Models;
@@ -80,6 +81,7 @@ public class CommandParameters
     public string? Filename { get; set; }
 
     [JsonPropertyName("location")]
+    [JsonConverter(typeof(FlexibleLocationConverter))]
     public LocationValue? Location { get; set; }
 
     [JsonPropertyName("direction")]
@@ -87,6 +89,25 @@ public class CommandParameters
 
     [JsonPropertyName("patternType")]
     public string? PatternType { get; set; }
+
+    // Pattern-specific parameters
+    [JsonPropertyName("rows")]
+    public int? Rows { get; set; }
+
+    [JsonPropertyName("columns")]
+    public int? Columns { get; set; }
+
+    [JsonPropertyName("featureType")]
+    public string? FeatureType { get; set; }
+
+    [JsonPropertyName("spacingX")]
+    public DimensionValue? SpacingX { get; set; }
+
+    [JsonPropertyName("spacingY")]
+    public DimensionValue? SpacingY { get; set; }
+
+    [JsonPropertyName("spacingDescription")]
+    public string? SpacingDescription { get; set; }
 }
 
 public class DimensionValue
@@ -116,7 +137,80 @@ public class LocationValue
     public DimensionValue? Z { get; set; }
 
     [JsonPropertyName("reference")]
-    public string? Reference { get; set; } // "center", "corner", "edge", etc.
+    public string? Reference { get; set; } // "center", "corner", "edge", "top face", etc.
+}
+
+/// <summary>
+/// Flexible JSON converter that handles location as either a string or object
+/// </summary>
+public class FlexibleLocationConverter : JsonConverter<LocationValue?>
+{
+    public override LocationValue? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Null)
+        {
+            return null;
+        }
+
+        // If it's a string, convert to LocationValue with Reference
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            var stringValue = reader.GetString();
+            return new LocationValue { Reference = stringValue };
+        }
+
+        // If it's an object, deserialize normally
+        if (reader.TokenType == JsonTokenType.StartObject)
+        {
+            var location = new LocationValue();
+            
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonTokenType.EndObject)
+                    break;
+
+                if (reader.TokenType == JsonTokenType.PropertyName)
+                {
+                    var propertyName = reader.GetString()?.ToLowerInvariant();
+                    reader.Read();
+
+                    switch (propertyName)
+                    {
+                        case "x":
+                            location.X = JsonSerializer.Deserialize<DimensionValue>(ref reader, options);
+                            break;
+                        case "y":
+                            location.Y = JsonSerializer.Deserialize<DimensionValue>(ref reader, options);
+                            break;
+                        case "z":
+                            location.Z = JsonSerializer.Deserialize<DimensionValue>(ref reader, options);
+                            break;
+                        case "reference":
+                            location.Reference = reader.GetString();
+                            break;
+                        default:
+                            reader.Skip();
+                            break;
+                    }
+                }
+            }
+            
+            return location;
+        }
+
+        return null;
+    }
+
+    public override void Write(Utf8JsonWriter writer, LocationValue? value, JsonSerializerOptions options)
+    {
+        if (value == null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        JsonSerializer.Serialize(writer, value, options);
+    }
 }
 
 /// <summary>

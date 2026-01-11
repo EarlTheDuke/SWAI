@@ -1,3 +1,5 @@
+using SWAI.Core.Models;
+
 namespace SWAI.Core.Commands;
 
 /// <summary>
@@ -30,11 +32,17 @@ public record CommandResult
     /// </summary>
     public TimeSpan ExecutionTime { get; init; }
 
-    public static CommandResult Succeeded(string message, object? data = null) => new()
+    /// <summary>
+    /// Preview of SolidWorks API calls that would be made
+    /// </summary>
+    public ApiCallSequence? ApiPreview { get; init; }
+
+    public static CommandResult Succeeded(string message, object? data = null, ApiCallSequence? apiPreview = null) => new()
     {
         Success = true,
         Message = message,
-        Data = data
+        Data = data,
+        ApiPreview = apiPreview
     };
 
     public static CommandResult Failed(string message, string? error = null) => new()

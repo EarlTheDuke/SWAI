@@ -91,6 +91,9 @@ public partial class App : Application
 
         var mainWindow = _host.Services.GetRequiredService<Views.MainWindow>();
         mainWindow.DataContext = _host.Services.GetRequiredService<MainViewModel>();
+        
+        // Set as main window so app stays open
+        MainWindow = mainWindow;
         mainWindow.Show();
 
         base.OnStartup(e);

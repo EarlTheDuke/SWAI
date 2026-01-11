@@ -132,6 +132,9 @@ public class CommandExecutor : Core.Interfaces.ICommandExecutor
 
     private async Task<CommandResult> ExecuteCreateBoxAsync(CreateBoxCommand cmd)
     {
+        // Generate API preview
+        var apiPreview = GenerateBoxApiPreview(cmd);
+
         // Create part if needed
         if (_partService.ActivePart == null)
         {
@@ -164,8 +167,47 @@ public class CommandExecutor : Core.Interfaces.ICommandExecutor
 
         return CommandResult.Succeeded(
             $"Created box: {cmd.Width} x {cmd.Length} x {cmd.Height}",
-            new { Part = _partService.ActivePart, Extrusion = extrusion }
+            new { Part = _partService.ActivePart, Extrusion = extrusion },
+            apiPreview
         );
+    }
+
+    private Core.Models.ApiCallSequence GenerateBoxApiPreview(CreateBoxCommand cmd)
+    {
+        var unit = cmd.Width.Unit.ToString().ToLower();
+        var planeName = cmd.SketchPlane.ToString() + " Plane";
+        
+        var halfW = cmd.Width.Value / 2;
+        var halfL = cmd.Length.Value / 2;
+
+        var sketchPreview = Core.Models.ApiPreviewGenerator.CreateSketchPreview(planeName);
+        sketchPreview.Order = 2;
+
+        var rectPreview = Core.Models.ApiPreviewGenerator.CreateRectanglePreview(-halfW, -halfL, halfW, halfL, unit);
+        rectPreview.Order = 3;
+
+        var extrudePreview = Core.Models.ApiPreviewGenerator.CreateExtrusionPreview(cmd.Height.Value, unit);
+        extrudePreview.Order = 4;
+
+        return new Core.Models.ApiCallSequence
+        {
+            OperationName = "Create Box",
+            UserCommand = cmd.Description,
+            Calls = new List<Core.Models.ApiCallPreview>
+            {
+                new Core.Models.ApiCallPreview
+                {
+                    Order = 1,
+                    ApiMethod = "swApp.NewDocument",
+                    Description = "Create new part document",
+                    CodePreview = $@"// Create new part document
+swModel = swApp.NewDocument(swApp.GetUserPreferenceStringValue(21), 0, 0, 0);"
+                },
+                sketchPreview,
+                rectPreview,
+                extrudePreview
+            }
+        };
     }
 
     private async Task<CommandResult> ExecuteCreateCylinderAsync(CreateCylinderCommand cmd)

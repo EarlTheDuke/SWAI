@@ -345,6 +345,14 @@ public partial class MainViewModel : ObservableObject
             // Process through AI
             var response = await _aiService.ProcessInputAsync(input, _sessionManager.History);
 
+            // Show warning if offline fallback was used
+            if (response.UsedOfflineFallback)
+            {
+                var reason = response.FallbackReason ?? "Unknown reason";
+                AddWarningMessage($"⚠ AI unavailable - using offline parsing. Reason: {reason}");
+                _logger.LogWarning("Used offline fallback: {Reason}", reason);
+            }
+
             // Add AI response
             if (!string.IsNullOrEmpty(response.Message))
             {
@@ -362,6 +370,13 @@ public partial class MainViewModel : ObservableObject
                     if (result.Success)
                     {
                         AddAssistantMessage($"✓ {result.Message}");
+                        
+                        // Show API preview if available (in mock mode)
+                        if (result.ApiPreview != null && IsMockMode)
+                        {
+                            var codePreview = result.ApiPreview.GenerateCodePreview();
+                            AddApiPreviewMessage(codePreview);
+                        }
                     }
                     else
                     {
@@ -525,6 +540,30 @@ public partial class MainViewModel : ObservableObject
         Messages.Add(msg);
     }
 
+    private void AddWarningMessage(string content)
+    {
+        var msg = new ChatMessageViewModel
+        {
+            Content = content,
+            IsUser = false,
+            IsWarning = true,
+            Timestamp = DateTime.Now
+        };
+        Messages.Add(msg);
+    }
+
+    private void AddApiPreviewMessage(string content)
+    {
+        var msg = new ChatMessageViewModel
+        {
+            Content = $"📋 SolidWorks API Preview:\n\n{content}",
+            IsUser = false,
+            IsApiPreview = true,
+            Timestamp = DateTime.Now
+        };
+        Messages.Add(msg);
+    }
+
     #endregion
 
     private string GetWelcomeMessage()
@@ -551,6 +590,8 @@ public class ChatMessageViewModel
     public string Content { get; set; } = string.Empty;
     public bool IsUser { get; set; }
     public bool IsError { get; set; }
+    public bool IsWarning { get; set; }
     public bool IsPreview { get; set; }
+    public bool IsApiPreview { get; set; }
     public DateTime Timestamp { get; set; }
 }

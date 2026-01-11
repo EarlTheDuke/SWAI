@@ -105,6 +105,16 @@ public class AIResponse
     /// Error message if parsing failed
     /// </summary>
     public string? Error { get; init; }
+
+    /// <summary>
+    /// Whether offline/fallback parsing was used instead of AI
+    /// </summary>
+    public bool UsedOfflineFallback { get; init; }
+
+    /// <summary>
+    /// Details about why fallback was used (for debugging)
+    /// </summary>
+    public string? FallbackReason { get; init; }
 }
 
 /// <summary>
